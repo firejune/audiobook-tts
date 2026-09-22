@@ -1,0 +1,1400 @@
+<!DOCTYPE html>
+<html lang="ko">
+<head>
+  <meta charset="UTF-8">
+  <meta name="viewport" content="width=device-width, initial-scale=1.0">
+  <title>Audiobook TTS Studio</title>
+  <link rel="stylesheet" href="https://cdn.jsdelivr.net/gh/orioncactus/pretendard/dist/web/static/pretendard.css">
+  <link href="https://fonts.googleapis.com/css2?family=Outfit:wght@400;500;600;700;800&family=JetBrains+Mono:wght@400;600&display=swap" rel="stylesheet">
+  <style>
+    :root {
+      --font-sans: 'Pretendard', -apple-system, BlinkMacSystemFont, sans-serif;
+      --font-display: 'Outfit', var(--font-sans);
+      --bg-base: #080c14;
+      --bg-surface: rgba(15, 23, 42, 0.75);
+      --bg-surface-elevated: rgba(20, 30, 55, 0.85);
+      --border-color: rgba(255, 255, 255, 0.08);
+      --border-hover: rgba(99, 102, 241, 0.4);
+      --primary: #6366f1;
+      --primary-gradient: linear-gradient(135deg, #6366f1 0%, #8b5cf6 50%, #d946ef 100%);
+      --accent: #a855f7;
+      --success: #10b981;
+      --danger: #ef4444;
+      --text-main: #f8fafc;
+      --text-muted: #94a3b8;
+      --text-dim: #64748b;
+    }
+
+    * {
+      box-sizing: border-box;
+      margin: 0;
+      padding: 0;
+      scrollbar-width: thin;
+      scrollbar-color: rgba(99, 102, 241, 0.4) rgba(15, 23, 42, 0.6);
+    }
+
+    *::-webkit-scrollbar {
+      width: 6px;
+      height: 6px;
+    }
+    *::-webkit-scrollbar-track {
+      background: rgba(11, 15, 25, 0.7);
+      border-radius: 8px;
+    }
+    *::-webkit-scrollbar-thumb {
+      background: linear-gradient(180deg, rgba(99, 102, 241, 0.6) 0%, rgba(139, 92, 246, 0.6) 100%);
+      border-radius: 8px;
+    }
+    *::-webkit-scrollbar-thumb:hover {
+      background: #6366f1;
+    }
+
+    body {
+      font-family: var(--font-sans);
+      background-color: var(--bg-base);
+      color: var(--text-main);
+      min-height: 100vh;
+      display: flex;
+      flex-direction: column;
+      position: relative;
+      overflow-x: hidden;
+    }
+
+    body::before {
+      content: '';
+      position: fixed;
+      top: 0;
+      left: 20%;
+      width: 60vw;
+      height: 50vh;
+      background: radial-gradient(circle, rgba(99, 102, 241, 0.12) 0%, rgba(168, 85, 247, 0.05) 50%, transparent 80%);
+      filter: blur(80px);
+      z-index: 0;
+      pointer-events: none;
+    }
+
+    .container {
+      max-width: 1480px;
+      margin: 0 auto;
+      padding: 24px 28px 60px 28px;
+      position: relative;
+      z-index: 1;
+      width: 100%;
+    }
+
+    /* Header */
+    .header {
+      background: linear-gradient(135deg, rgba(20, 27, 45, 0.8) 0%, rgba(15, 23, 42, 0.9) 100%);
+      backdrop-filter: blur(20px);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 24px 30px;
+      margin-bottom: 24px;
+      box-shadow: 0 16px 40px rgba(0, 0, 0, 0.4);
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      flex-wrap: wrap;
+      gap: 16px;
+    }
+
+    .title-area h1 {
+      font-family: var(--font-display);
+      font-size: 1.85rem;
+      font-weight: 800;
+      background: linear-gradient(135deg, #ffffff 0%, #c7d2fe 60%, #a5b4fc 100%);
+      -webkit-background-clip: text;
+      -webkit-text-fill-color: transparent;
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .title-area p {
+      font-size: 0.9rem;
+      color: var(--text-muted);
+      margin-top: 5px;
+    }
+
+    .badges {
+      display: flex;
+      gap: 8px;
+      flex-wrap: wrap;
+    }
+
+    .badge {
+      font-size: 0.76rem;
+      font-weight: 600;
+      padding: 5px 12px;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid var(--border-color);
+      color: #cbd5e1;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .badge.primary {
+      background: rgba(99, 102, 241, 0.15);
+      border-color: rgba(99, 102, 241, 0.4);
+      color: #c7d2fe;
+    }
+    .badge.success {
+      background: rgba(16, 185, 129, 0.15);
+      border-color: rgba(16, 185, 129, 0.4);
+      color: #6ee7b7;
+    }
+
+    /* Main Grid */
+    .grid {
+      display: grid;
+      grid-template-columns: 1.15fr 1.35fr;
+      gap: 24px;
+      align-items: start;
+    }
+
+    @media (max-width: 1024px) {
+      .grid {
+        grid-template-columns: 1fr;
+      }
+    }
+
+    /* Glass Panels */
+    .panel {
+      background: var(--bg-surface);
+      backdrop-filter: blur(16px);
+      border: 1px solid var(--border-color);
+      border-radius: 20px;
+      padding: 24px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.35);
+    }
+
+    .panel-title {
+      font-size: 1.12rem;
+      font-weight: 700;
+      margin-bottom: 18px;
+      display: flex;
+      align-items: center;
+      gap: 8px;
+      color: #f1f5f9;
+    }
+
+    /* Form Inputs */
+    .form-group {
+      margin-bottom: 16px;
+    }
+
+    .label-row {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 6px;
+    }
+
+    label {
+      font-size: 0.85rem;
+      font-weight: 600;
+      color: #cbd5e1;
+    }
+
+    textarea, input, select {
+      width: 100%;
+      background: rgba(10, 15, 26, 0.85);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 12px;
+      padding: 12px 16px;
+      font-family: inherit;
+      font-size: 0.92rem;
+      color: #ffffff;
+      outline: none;
+      transition: all 0.2s ease;
+    }
+
+    textarea:focus, input:focus, select:focus {
+      border-color: var(--primary);
+      box-shadow: 0 0 0 3px rgba(99, 102, 241, 0.25);
+      background: rgba(13, 20, 36, 0.95);
+    }
+
+    textarea {
+      resize: vertical;
+      min-height: 160px;
+      line-height: 1.6;
+    }
+
+    /* Quick Chips */
+    .chip-group {
+      display: flex;
+      flex-wrap: wrap;
+      gap: 6px;
+      margin-top: 6px;
+    }
+
+    .chip {
+      background: rgba(255, 255, 255, 0.05);
+      border: 1px solid rgba(255, 255, 255, 0.1);
+      border-radius: 9999px;
+      padding: 5px 12px;
+      font-size: 0.78rem;
+      font-weight: 500;
+      color: #cbd5e1;
+      cursor: pointer;
+      transition: all 0.2s ease;
+    }
+
+    .chip:hover {
+      background: rgba(99, 102, 241, 0.2);
+      border-color: rgba(99, 102, 241, 0.5);
+      color: #ffffff;
+      transform: translateY(-1px);
+    }
+
+    .select-row {
+      display: grid;
+      grid-template-columns: 1fr 1fr;
+      gap: 12px;
+    }
+
+    /* Buttons */
+    .btn-row {
+      display: flex;
+      gap: 12px;
+      margin-top: 20px;
+    }
+
+    .btn {
+      padding: 14px 24px;
+      border-radius: 14px;
+      font-size: 1rem;
+      font-weight: 700;
+      cursor: pointer;
+      border: none;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      gap: 8px;
+      transition: all 0.2s cubic-bezier(0.4, 0, 0.2, 1);
+    }
+
+    .btn-primary {
+      flex: 3;
+      background: var(--primary-gradient);
+      color: #ffffff;
+      box-shadow: 0 8px 24px rgba(99, 102, 241, 0.4);
+    }
+    .btn-primary:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(99, 102, 241, 0.6);
+      filter: brightness(1.08);
+    }
+    .btn-primary:active {
+      transform: translateY(0);
+    }
+
+    .btn-stop {
+      flex: 1.2;
+      background: linear-gradient(135deg, #ef4444 0%, #dc2626 100%);
+      color: #ffffff;
+      box-shadow: 0 8px 24px rgba(239, 68, 68, 0.35);
+    }
+    .btn-stop:hover {
+      transform: translateY(-2px);
+      box-shadow: 0 12px 30px rgba(239, 68, 68, 0.5);
+      filter: brightness(1.1);
+    }
+    .btn-stop:active {
+      transform: translateY(0);
+    }
+
+    .btn:disabled {
+      opacity: 0.5;
+      cursor: not-allowed;
+      transform: none !important;
+      box-shadow: none !important;
+    }
+
+    /* AudioBook Player Card */
+    .player-hero {
+      background: linear-gradient(135deg, rgba(24, 34, 60, 0.9) 0%, rgba(16, 24, 46, 0.95) 100%);
+      border: 1px solid rgba(99, 102, 241, 0.35);
+      border-radius: 18px;
+      padding: 22px;
+      margin-bottom: 20px;
+      box-shadow: 0 14px 40px rgba(0, 0, 0, 0.45);
+      position: relative;
+      overflow: hidden;
+    }
+
+    .player-hero::after {
+      content: '';
+      position: absolute;
+      bottom: 0;
+      left: 0;
+      height: 3px;
+      width: var(--audio-progress, 0%);
+      background: var(--primary-gradient);
+      transition: width 0.15s linear;
+    }
+
+    .player-header {
+      display: flex;
+      justify-content: space-between;
+      align-items: center;
+      margin-bottom: 12px;
+    }
+
+    .player-status-badge {
+      font-size: 0.78rem;
+      font-weight: 700;
+      padding: 4px 12px;
+      border-radius: 9999px;
+      background: rgba(255, 255, 255, 0.08);
+      color: #94a3b8;
+      display: flex;
+      align-items: center;
+      gap: 6px;
+    }
+    .player-status-badge.playing {
+      background: rgba(16, 185, 129, 0.2);
+      border: 1px solid rgba(16, 185, 129, 0.5);
+      color: #6ee7b7;
+    }
+    .player-status-badge.buffering {
+      background: rgba(245, 158, 11, 0.2);
+      border: 1px solid rgba(245, 158, 11, 0.5);
+      color: #fcd34d;
+    }
+
+    .now-reading-title {
+      font-size: 0.78rem;
+      font-weight: 700;
+      text-transform: uppercase;
+      letter-spacing: 0.05em;
+      color: #818cf8;
+      margin-bottom: 8px;
+    }
+
+    .now-reading-text {
+      font-size: 1.08rem;
+      line-height: 1.6;
+      color: #ffffff;
+      font-weight: 600;
+      min-height: 52px;
+      word-break: break-word;
+      transition: all 0.2s ease;
+    }
+
+    .player-controls {
+      display: flex;
+      align-items: center;
+      justify-content: space-between;
+      margin-top: 18px;
+      padding-top: 14px;
+      border-top: 1px solid rgba(255, 255, 255, 0.08);
+    }
+
+    .ctrl-btns {
+      display: flex;
+      align-items: center;
+      gap: 12px;
+    }
+
+    .ctrl-btn {
+      background: rgba(255, 255, 255, 0.08);
+      border: 1px solid rgba(255, 255, 255, 0.12);
+      border-radius: 50%;
+      width: 42px;
+      height: 42px;
+      display: flex;
+      align-items: center;
+      justify-content: center;
+      cursor: pointer;
+      color: #ffffff;
+      font-size: 1.1rem;
+      transition: all 0.2s ease;
+    }
+    .ctrl-btn:hover {
+      background: rgba(99, 102, 241, 0.3);
+      border-color: rgba(99, 102, 241, 0.6);
+      transform: scale(1.08);
+    }
+    .ctrl-btn.play-master {
+      width: 52px;
+      height: 52px;
+      background: var(--primary-gradient);
+      box-shadow: 0 0 20px rgba(99, 102, 241, 0.6);
+      font-size: 1.3rem;
+    }
+
+    .progress-info {
+      font-size: 0.82rem;
+      color: var(--text-muted);
+      font-family: 'JetBrains Mono', monospace;
+    }
+
+    /* Sentence Queue List */
+    .queue-container {
+      max-height: 480px;
+      overflow-y: auto;
+      padding-right: 6px;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+    }
+
+    .sentence-card {
+      background: rgba(12, 18, 32, 0.7);
+      border: 1px solid rgba(255, 255, 255, 0.06);
+      border-radius: 14px;
+      padding: 14px 16px;
+      display: flex;
+      align-items: flex-start;
+      gap: 14px;
+      cursor: pointer;
+      transition: all 0.22s ease;
+      position: relative;
+    }
+
+    .sentence-card:hover {
+      background: rgba(20, 28, 48, 0.85);
+      border-color: rgba(99, 102, 241, 0.35);
+      transform: translateX(4px);
+    }
+
+    .sentence-card.playing {
+      background: linear-gradient(135deg, rgba(99, 102, 241, 0.22) 0%, rgba(168, 85, 247, 0.18) 100%);
+      border: 1px solid rgba(129, 140, 248, 0.7);
+      box-shadow: 0 8px 24px rgba(99, 102, 241, 0.3);
+    }
+
+    .sentence-card.played {
+      opacity: 0.65;
+    }
+
+    .card-idx {
+      font-family: 'JetBrains Mono', monospace;
+      font-size: 0.78rem;
+      font-weight: 700;
+      color: #818cf8;
+      background: rgba(99, 102, 241, 0.12);
+      padding: 4px 8px;
+      border-radius: 8px;
+      min-width: 42px;
+      text-align: center;
+    }
+
+    .card-content {
+      flex: 1;
+    }
+
+    .card-text {
+      font-size: 0.94rem;
+      line-height: 1.55;
+      color: #e2e8f0;
+    }
+
+    .sentence-card.playing .card-text {
+      color: #ffffff;
+      font-weight: 600;
+    }
+
+    .card-meta {
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      margin-top: 6px;
+      font-size: 0.74rem;
+      color: var(--text-dim);
+    }
+
+    .status-tag {
+      padding: 2px 8px;
+      border-radius: 9999px;
+      font-weight: 600;
+      font-size: 0.72rem;
+    }
+    .status-tag.pending { background: rgba(255, 255, 255, 0.06); color: #94a3b8; }
+    .status-tag.generating { background: rgba(245, 158, 11, 0.15); color: #fbbf24; }
+    .status-tag.buffering { background: rgba(245, 158, 11, 0.2); color: #fcd34d; }
+    .status-tag.ready { background: rgba(16, 185, 129, 0.15); color: #34d399; }
+    .status-tag.playing { background: rgba(99, 102, 241, 0.3); color: #a5b4fc; }
+    .status-tag.played { background: rgba(255, 255, 255, 0.04); color: #64748b; }
+
+    /* Pulse animation for active audio */
+    .pulse-ring {
+      display: inline-block;
+      width: 8px;
+      height: 8px;
+      border-radius: 50%;
+      background: #10b981;
+      box-shadow: 0 0 0 rgba(16, 185, 129, 0.6);
+      animation: pulse 1.8s infinite;
+    }
+
+    @keyframes pulse {
+      0% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0.7); }
+      70% { box-shadow: 0 0 0 8px rgba(16, 185, 129, 0); }
+      100% { box-shadow: 0 0 0 0 rgba(16, 185, 129, 0); }
+    }
+
+    .empty-queue-msg {
+      text-align: center;
+      padding: 40px 20px;
+      color: var(--text-dim);
+      font-size: 0.9rem;
+    }
+  </style>
+</head>
+<body>
+  <div class="container">
+    <!-- Header -->
+    <header class="header">
+      <div class="title-area">
+        <h1><span>🎙️</span> Audiobook TTS Studio</h1>
+        <p>Streaming Multi-Device Neural Audiobook Generator · Real-time Continuous Narration</p>
+      </div>
+      <div class="badges" id="headerBadges">
+        <span class="badge primary" id="modelBadge">🧠 Qwen3-TTS 12Hz 1.7B</span>
+        <span class="badge success" id="poolBadge">⚡ Worker Pool: Loading...</span>
+        <span class="badge" id="audioBadge">🔊 24kHz High-Fidelity</span>
+      </div>
+    </header>
+
+    <!-- Main Content -->
+    <div class="grid">
+      <!-- Left: Input & Options Panel -->
+      <section class="panel">
+        <h2 class="panel-title">📝 Generation Settings</h2>
+
+        <div class="form-group">
+          <div class="label-row">
+            <label for="textInput">Manuscript / Chapter Text</label>
+            <span style="font-size: 0.76rem; color: var(--text-dim);" id="charCount">0 chars</span>
+          </div>
+          <textarea id="textInput" placeholder="Enter or paste novel chapters, articles, or dialogue to generate..."></textarea>
+          
+          <div style="margin-top: 8px;">
+            <div style="font-size: 0.76rem; color: var(--text-dim); margin-bottom: 4px;">⚡ Preset Samples</div>
+            <div class="chip-group">
+              <button type="button" class="chip" onclick="fillSample(1)">🌟 Literary Fiction</button>
+              <button type="button" class="chip" onclick="fillSample(2)">🚀 Sci-Fi Odyssey</button>
+              <button type="button" class="chip" onclick="fillSample(3)">🎙️ News Briefing</button>
+              <button type="button" class="chip" onclick="fillSample(4)">💖 Jinni's Whisper (KR)</button>
+            </div>
+          </div>
+        </div>
+
+        <div class="select-row form-group">
+          <div>
+            <label for="langSelect">🌐 Target Language</label>
+            <select id="langSelect">
+              <option value="English" selected>English</option>
+              <option value="Korean">Korean</option>
+              <option value="Chinese">Chinese</option>
+              <option value="Japanese">Japanese</option>
+              <option value="Auto">Auto Detect</option>
+            </select>
+          </div>
+          <div>
+            <label for="spkSelect">🎙️ Voice Preset</label>
+            <select id="spkSelect">
+              <option value="Vivian" selected>Vivian (Natural Female)</option>
+              <option value="Serena">Serena (Clear Narrator)</option>
+              <option value="Ryan">Ryan (Warm Male)</option>
+              <option value="Uncle">Uncle (Deep Narrative Male)</option>
+            </select>
+          </div>
+        </div>
+
+        <div class="form-group">
+          <label for="instructInput">✨ Style & Emotion Instruction (Optional)</label>
+          <input type="text" id="instructInput" placeholder="e.g. Speak in a gentle, warm whisper / with dramatic suspense">
+          <div class="chip-group">
+            <button type="button" class="chip" onclick="fillInstruct('Speak in a very sweet, warm, and affectionate tone')">🥰 Warm & Sweet</button>
+            <button type="button" class="chip" onclick="fillInstruct('Speak with great confidence and articulate tone')">💪 Confident</button>
+            <button type="button" class="chip" onclick="fillInstruct('Speak in a soft, gentle whisper tone')">🤫 Whisper</button>
+            <button type="button" class="chip" onclick="fillInstruct('Speak with cheerful, bright enthusiasm')">🎉 Cheerful</button>
+            <button type="button" class="chip" onclick="fillInstruct('Speak with a touch of melancholy and emotion')">😢 Melancholic</button>
+          </div>
+        </div>
+
+        <div class="btn-row">
+          <button id="btnGenerate" class="btn btn-primary" onclick="startGeneration()">
+            <span>⚡ Start Generation</span>
+          </button>
+          <button id="btnStop" class="btn btn-stop" onclick="stopGeneration()" disabled>
+            <span>⏹️ Stop Generation</span>
+          </button>
+        </div>
+      </section>
+
+      <!-- Right: Audiobook Player Panel -->
+      <section class="panel">
+        <h2 class="panel-title">🎧 Continuous Audiobook Player</h2>
+
+        <!-- Player Hero Card -->
+        <div class="player-hero" id="playerHero">
+          <div class="player-header">
+            <div class="now-reading-title">🔊 Now Reading</div>
+            <div id="playerStatusBadge" class="player-status-badge">
+              <span class="pulse-ring" style="display:none;" id="pulseRing"></span>
+              <span id="playerStatusText">Standby</span>
+            </div>
+          </div>
+
+          <div id="nowReadingText" class="now-reading-text">
+            Enter text and click 'Start Generation' to begin continuous real-time narration.
+          </div>
+
+          <div class="player-controls">
+            <div class="ctrl-btns">
+              <button class="ctrl-btn" title="Previous Sentence" onclick="playPrev()">⏮</button>
+              <button class="ctrl-btn play-master" id="btnMasterPlay" title="Play / Pause" onclick="togglePlayPause()">▶</button>
+              <button class="ctrl-btn" title="Next Sentence" onclick="playNextManual()">⏭</button>
+              <button class="ctrl-btn" title="Stop Narration" onclick="userStopPlayback()">⏹</button>
+            </div>
+            <div class="progress-info" id="playbackProgressInfo">0 / 0 Sentences</div>
+          </div>
+        </div>
+
+        <!-- Sentence Track Queue List -->
+        <div style="display: flex; justify-content: space-between; align-items: center; margin-bottom: 10px;">
+          <h3 style="font-size: 0.95rem; font-weight: 700; color: #cbd5e1;">📑 Narration Queue & Tracks</h3>
+          <span style="font-size: 0.76rem; color: var(--text-dim);" id="queueCount">0 sentences</span>
+        </div>
+
+        <div class="queue-container" id="queueContainer">
+          <div class="empty-queue-msg">No audiobook tracks generated yet.</div>
+        </div>
+      </section>
+    </div>
+  </div>
+
+  <script>
+    // =========================================================================
+    // Resilient Audiobook State Machine
+    // Handles buffer underruns, sequential autoplay, user pauses, track skips,
+    // and full audiobook completion without freezing.
+    // =========================================================================
+
+    const PlaybackState = {
+      IDLE: 'idle',           // Nothing playing or initial
+      BUFFERING: 'buffering', // Waiting for backend to finish generating the next track
+      PLAYING: 'playing',     // Audio currently playing
+      PAUSED: 'paused',       // User manually paused (never auto-resume on chunk)
+      FINISHED: 'finished'    // All tracks played
+    };
+
+    const state = {
+      sentences: [],          // [{ id, idx, total, text, audioUrl, status }]
+      currentTrackIndex: -1,  // Currently playing or selected track
+      waitingTrackIndex: -1,  // Track index we are waiting for during BUFFERING
+      playbackState: PlaybackState.IDLE,
+      userPaused: false,      // Explicit user pause flag
+      isGenerating: false,    // Backend generation stream active
+      audio: new Audio(),
+      abortController: null,
+      autoAdvanceTimer: null,
+    };
+
+    const STORAGE_KEY = "qwen3_tts_audiobook_settings_v1";
+
+    // --- Audio Event Listeners ---
+
+    state.audio.addEventListener('ended', () => {
+      // Guard: Only advance if legitimate track was actually playing
+      if (state.playbackState !== PlaybackState.PLAYING) return;
+      if (state.currentTrackIndex < 0 || state.currentTrackIndex >= state.sentences.length) return;
+      if (!state.audio.src || state.audio.src.startsWith(SILENT_AUDIO)) return;
+
+      onTrackEnded();
+    });
+
+    state.audio.addEventListener('timeupdate', () => {
+      if (state.audio.duration && !isNaN(state.audio.duration) && state.audio.duration > 0) {
+        const pct = (state.audio.currentTime / state.audio.duration) * 100;
+        document.getElementById('playerHero').style.setProperty('--audio-progress', `${pct}%`);
+      }
+    });
+
+    state.audio.addEventListener('error', (err) => {
+      console.warn("Audio playback error encountered on track:", state.currentTrackIndex, err);
+      // Resilience safeguard: Do not get permanently stuck. Auto advance to next after short delay.
+      clearTimeout(state.autoAdvanceTimer);
+      state.autoAdvanceTimer = setTimeout(() => {
+        if (state.playbackState === PlaybackState.PLAYING) {
+          onTrackEnded();
+        }
+      }, 800);
+    });
+
+    // Base64 1-sample silent WAV to permanently unlock HTML5 Audio Autoplay policy in browsers
+    const SILENT_AUDIO = "data:audio/wav;base64,UklGRigAAABXQVZFZm10IBIAAAABAAEARKwAAIhYAQACABAAAABkYXRhAgAAAAEA";
+    let isAudioUnlocked = false;
+    let globalAudioCtx = null;
+
+    function unlockAudio() {
+      if (isAudioUnlocked) return;
+      try {
+        if (!globalAudioCtx) {
+          globalAudioCtx = new (window.AudioContext || window.webkitAudioContext)();
+        }
+        if (globalAudioCtx.state === 'suspended') {
+          globalAudioCtx.resume();
+        }
+        // Use an ISOLATED dummy Audio element so state.audio ended listeners are NEVER triggered!
+        const dummyAudio = new Audio(SILENT_AUDIO);
+        const p = dummyAudio.play();
+        if (p !== undefined) {
+          p.then(() => {
+            isAudioUnlocked = true;
+            console.log(">>> [Audio] Document Autoplay successfully unlocked via isolated dummy audio!");
+          }).catch(() => {});
+        }
+      } catch (e) {}
+    }
+
+    // Attach unlock on any initial user touch/click anywhere on document
+    ['click', 'touchstart', 'keydown'].forEach(evt => {
+      document.addEventListener(evt, () => unlockAudio(), { once: true, passive: true });
+    });
+
+    // --- Core Playback Functions ---
+
+    function playTrack(index, options = {}) {
+      if (index < 0 || index >= state.sentences.length) {
+        // Out of bounds -> check if we are truly finished
+        checkIfAllFinished();
+        return;
+      }
+
+      if (options.userInitiated) {
+        state.userPaused = false;
+        unlockAudio();
+      }
+
+      const track = state.sentences[index];
+
+      // Case A: Track has audio data -> PLAY IMMEDIATELY
+      if (track.audioUrl) {
+        // Mark previous playing track as played
+        if (state.currentTrackIndex >= 0 && state.currentTrackIndex !== index) {
+          if (state.sentences[state.currentTrackIndex].status === 'playing') {
+            state.sentences[state.currentTrackIndex].status = 'played';
+          }
+        }
+
+        state.currentTrackIndex = index;
+        state.waitingTrackIndex = -1;
+        track.status = 'playing';
+        state.playbackState = PlaybackState.PLAYING;
+
+        // Reset and play
+        try {
+          state.audio.pause();
+          state.audio.src = track.audioUrl;
+          state.audio.currentTime = 0;
+          const playPromise = state.audio.play();
+          if (playPromise !== undefined) {
+            playPromise.then(() => {
+              isAudioUnlocked = true;
+              state.playbackState = PlaybackState.PLAYING;
+              document.getElementById('btnMasterPlay').innerText = '⏸';
+              updatePlayerUI(track.text, "playing");
+            }).catch(err => {
+              console.warn("Audio play error:", err.name, err.message);
+              if (err.name === 'NotAllowedError') {
+                // Autoplay blocked by browser policy -> let user tap to resume
+                state.playbackState = PlaybackState.PAUSED;
+                document.getElementById('btnMasterPlay').innerText = '▶';
+                updatePlayerUI(track.text + " (Click or press ▶ to play)", "paused");
+              }
+            });
+          }
+        } catch (e) {
+          console.error("Failed to start audio element:", e);
+        }
+
+        document.getElementById('btnMasterPlay').innerText = '⏸';
+        updatePlayerUI(track.text, "playing");
+        renderQueue();
+        scrollToTrack(index);
+      }
+      // Case B: Track audio is NOT ready yet (Buffer Underrun / Generation in progress)
+      else {
+        state.currentTrackIndex = index;
+        state.waitingTrackIndex = index;
+        track.status = 'buffering';
+        state.playbackState = PlaybackState.BUFFERING;
+
+        try {
+          state.audio.pause();
+        } catch (e) {}
+
+        document.getElementById('btnMasterPlay').innerText = '⏳';
+        updatePlayerUI(`[${index + 1}/${state.sentences.length}] Generating next sentence... ⏳ (Continuous autoplay ready)`, "buffering");
+        renderQueue();
+        scrollToTrack(index);
+      }
+    }
+
+    function onTrackEnded() {
+      // 1. Mark current track as played
+      if (state.currentTrackIndex >= 0 && state.currentTrackIndex < state.sentences.length) {
+        state.sentences[state.currentTrackIndex].status = 'played';
+      }
+      renderQueue();
+
+      // 2. Determine next track
+      const nextIdx = state.currentTrackIndex + 1;
+
+      // If user paused, do not auto-advance
+      if (state.userPaused) {
+        state.playbackState = PlaybackState.PAUSED;
+        document.getElementById('btnMasterPlay').innerText = '▶';
+        return;
+      }
+
+      if (nextIdx < state.sentences.length) {
+        // Advance to next track (will either play immediately if ready, or wait in BUFFERING)
+        playTrack(nextIdx);
+      } else {
+        // We reached the end of current sentence list
+        checkIfAllFinished();
+      }
+    }
+
+    function checkIfAllFinished() {
+      if (!state.sentences || state.sentences.length === 0) return;
+
+      // If backend is still generating, enter buffering for the forthcoming sentences
+      if (state.isGenerating) {
+        const nextTarget = state.currentTrackIndex + 1;
+        state.waitingTrackIndex = nextTarget;
+        state.playbackState = PlaybackState.BUFFERING;
+        updatePlayerUI("Generating next sentence... ⏳", "buffering");
+        document.getElementById('btnMasterPlay').innerText = '⏳';
+        renderQueue();
+        return;
+      }
+
+      // Safeguard: Do not mark finished if any track is still generating or waiting
+      const hasPendingOrGenerating = state.sentences.some(s => s.status === 'generating' || s.status === 'pending' || s.status === 'buffering');
+      if (hasPendingOrGenerating) {
+        return;
+      }
+
+      // Check if all sentences have completed playback
+      const allPlayed = state.sentences.length > 0 && state.sentences.every(s => s.status === 'played');
+      if (allPlayed) {
+        state.playbackState = PlaybackState.FINISHED;
+        document.getElementById('btnMasterPlay').innerText = '▶';
+        updatePlayerUI("All sentences completed! 🎉", "finished");
+        document.getElementById('playerHero').style.setProperty('--audio-progress', `100%`);
+        renderQueue();
+      }
+    }
+
+    function togglePlayPause() {
+      unlockAudio();
+
+      // If currently playing -> PAUSE
+      if (state.playbackState === PlaybackState.PLAYING) {
+        state.audio.pause();
+        state.userPaused = true;
+        state.playbackState = PlaybackState.PAUSED;
+        document.getElementById('btnMasterPlay').innerText = '▶';
+        if (state.currentTrackIndex >= 0 && state.sentences[state.currentTrackIndex]) {
+          state.sentences[state.currentTrackIndex].status = 'ready';
+          updatePlayerUI(state.sentences[state.currentTrackIndex].text + " (Paused ⏸️)", "paused");
+        }
+        renderQueue();
+        return;
+      }
+
+      // If currently paused or idle -> RESUME / START
+      state.userPaused = false;
+
+      // If we were buffering, re-engage buffering
+      if (state.playbackState === PlaybackState.BUFFERING) {
+        const target = state.waitingTrackIndex >= 0 ? state.waitingTrackIndex : 0;
+        playTrack(target, { userInitiated: true });
+        return;
+      }
+
+      // If we have a track currently loaded and paused
+      if (state.currentTrackIndex >= 0 && state.currentTrackIndex < state.sentences.length) {
+        const cur = state.sentences[state.currentTrackIndex];
+        if (cur.audioUrl) {
+          state.playbackState = PlaybackState.PLAYING;
+          cur.status = 'playing';
+          state.audio.play().catch(e => console.log(e));
+          document.getElementById('btnMasterPlay').innerText = '⏸';
+          updatePlayerUI(cur.text, "playing");
+          renderQueue();
+          return;
+        } else {
+          playTrack(state.currentTrackIndex, { userInitiated: true });
+          return;
+        }
+      }
+
+      // Fallback: Start from beginning
+      if (state.sentences.length > 0) {
+        playTrack(0, { userInitiated: true });
+      }
+    }
+
+    function playPrev() {
+      if (state.currentTrackIndex > 0) {
+        playTrack(state.currentTrackIndex - 1, { userInitiated: true });
+      }
+    }
+
+    function playNextManual() {
+      if (state.currentTrackIndex + 1 < state.sentences.length) {
+        playTrack(state.currentTrackIndex + 1, { userInitiated: true });
+      }
+    }
+
+    function resetPlaybackForGeneration() {
+      try {
+        state.audio.pause();
+        state.audio.currentTime = 0;
+      } catch (e) {}
+      state.userPaused = false;
+      state.playbackState = PlaybackState.BUFFERING;
+      state.currentTrackIndex = -1;
+      state.waitingTrackIndex = 0;
+      state.sentences = [];
+      document.getElementById('playerHero').style.setProperty('--audio-progress', `0%`);
+      document.getElementById('btnMasterPlay').innerText = '⏳';
+      updatePlayerUI("Preparing generation... ⏳", "buffering");
+      renderQueue();
+    }
+
+    function userStopPlayback() {
+      try {
+        state.audio.pause();
+        state.audio.currentTime = 0;
+      } catch (e) {}
+      state.userPaused = true;
+      state.playbackState = PlaybackState.IDLE;
+      state.waitingTrackIndex = -1;
+
+      document.getElementById('btnMasterPlay').innerText = '▶';
+      document.getElementById('playerHero').style.setProperty('--audio-progress', `0%`);
+
+      if (state.currentTrackIndex >= 0 && state.sentences[state.currentTrackIndex]) {
+        state.sentences[state.currentTrackIndex].status = 'ready';
+      }
+
+      updatePlayerUI("Narration stopped ⏹️", "idle");
+      renderQueue();
+    }
+
+    // Auto-Recovery Watchdog: Guarantees no buffer underrun stays stuck
+    setInterval(() => {
+      if (state.userPaused) return;
+      if (state.playbackState === PlaybackState.BUFFERING) {
+        const targetIdx = state.waitingTrackIndex >= 0 ? state.waitingTrackIndex : (state.currentTrackIndex + 1);
+        if (targetIdx >= 0 && targetIdx < state.sentences.length) {
+          const target = state.sentences[targetIdx];
+          if (target && target.audioUrl) {
+            console.log(">>> [Watchdog] Found ready audio for waiting track:", targetIdx, "- Auto Resuming!");
+            playTrack(targetIdx);
+          }
+        }
+      }
+    }, 350);
+
+    function onTrackClick(idx) {
+      // User directly clicked a sentence card
+      playTrack(idx, { userInitiated: true });
+    }
+
+    function scrollToTrack(index) {
+      const el = document.getElementById(`track-item-${index}`);
+      if (el) {
+        el.scrollIntoView({ behavior: 'smooth', block: 'nearest' });
+      }
+    }
+
+    function updatePlayerUI(text, status) {
+      document.getElementById('nowReadingText').innerText = text;
+      const badge = document.getElementById('playerStatusBadge');
+      const badgeText = document.getElementById('playerStatusText');
+      const pulse = document.getElementById('pulseRing');
+
+      badge.className = "player-status-badge";
+      if (status === 'playing') {
+        badge.classList.add('playing');
+        badgeText.innerText = "Reading 🔊";
+        pulse.style.display = "inline-block";
+      } else if (status === 'buffering') {
+        badge.classList.add('buffering');
+        badgeText.innerText = "Buffering ⏳";
+        pulse.style.display = "none";
+      } else if (status === 'finished') {
+        badgeText.innerText = "Completed ✨";
+        pulse.style.display = "none";
+      } else if (status === 'paused') {
+        badgeText.innerText = "Paused ⏸️";
+        pulse.style.display = "none";
+      } else {
+        badgeText.innerText = "Standby";
+        pulse.style.display = "none";
+      }
+
+      const total = state.sentences.length;
+      const cur = state.currentTrackIndex >= 0 ? state.currentTrackIndex + 1 : 0;
+      document.getElementById('playbackProgressInfo').innerText = `${cur} / ${total} Sentences`;
+    }
+
+    function renderQueue() {
+      const container = document.getElementById('queueContainer');
+      document.getElementById('queueCount').innerText = `${state.sentences.length} sentences`;
+
+      if (state.sentences.length === 0) {
+        container.innerHTML = `<div class="empty-queue-msg">No audiobook tracks generated yet.</div>`;
+        return;
+      }
+
+      let html = '';
+      state.sentences.forEach((s, idx) => {
+        const tagMap = {
+          pending: '<span class="status-tag pending">Pending</span>',
+          generating: '<span class="status-tag generating">Generating...</span>',
+          buffering: '<span class="status-tag buffering">Buffering ⏳</span>',
+          ready: '<span class="status-tag ready">Ready ✨</span>',
+          playing: '<span class="status-tag playing">Playing 🔊</span>',
+          played: '<span class="status-tag played">Completed ✔</span>',
+          stopped: '<span class="status-tag pending">Stopped ⏹️</span>',
+        };
+        const tag = tagMap[s.status] || tagMap.pending;
+        const devBadge = s.device ? `<span style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.08); color:var(--accent-glow); margin-left:6px;">${s.device.includes('cuda:1') ? 'RTX 5070 Ti' : s.device.includes('cuda:0') ? 'RTX 4070 Ti' : s.device.includes('cpu') ? 'Ultra 7 265K (CPU)' : s.device}</span>` : '';
+
+        html += `
+          <div id="track-item-${idx}" class="sentence-card ${s.status}" onclick="onTrackClick(${idx})">
+            <div class="card-idx">[${idx + 1}/${s.total}]</div>
+            <div class="card-content">
+              <div class="card-text">${escapeHtml(s.text)}</div>
+              <div class="card-meta">
+                ${tag}
+                ${devBadge}
+                ${s.audioUrl ? '<span>• Click to listen</span>' : '<span>• Awaiting generation</span>'}
+              </div>
+            </div>
+          </div>
+        `;
+      });
+      container.innerHTML = html;
+    }
+
+    function escapeHtml(text) {
+      return (text || '').replace(/[&<>"']/g, function(m) {
+        return { '&': '&amp;', '<': '&lt;', '>': '&gt;', '"': '&quot;', "'": '&#039;' }[m];
+      });
+    }
+
+    // --- Backend Streaming Generation & Event Dispatcher ---
+
+    async function startGeneration() {
+      const text = document.getElementById('textInput').value.trim();
+      if (!text) {
+        alert("Please enter text to generate!");
+        return;
+      }
+
+      // Unlock Audio autoplay policy permanently within this direct user gesture
+      unlockAudio();
+
+      saveSettings();
+
+      const lang = document.getElementById('langSelect').value;
+      const speaker = document.getElementById('spkSelect').value;
+      const instruct = document.getElementById('instructInput').value.trim();
+
+      state.isGenerating = true;
+      state.userPaused = false;
+      document.getElementById('btnGenerate').disabled = true;
+      document.getElementById('btnStop').disabled = false;
+
+      // Reset audio playback cleanly
+      resetPlaybackForGeneration();
+
+      state.abortController = new AbortController();
+
+      let hasError = false;
+      try {
+        const response = await fetch('/api/generate/stream', {
+          method: 'POST',
+          headers: { 'Content-Type': 'application/json' },
+          body: JSON.stringify({ text, language: lang, speaker, instruct, stream: true }),
+          signal: state.abortController.signal,
+        });
+
+        if (!response.ok) {
+          throw new Error(`HTTP ${response.status}: ${response.statusText}`);
+        }
+
+        const reader = response.body.getReader();
+        const decoder = new TextDecoder();
+        let buffer = '';
+
+        while (true) {
+          const { done, value } = await reader.read();
+          if (done) break;
+          buffer += decoder.decode(value, { stream: true });
+
+          const lines = buffer.split('\n');
+          buffer = lines.pop(); // keep last incomplete line
+
+          for (const line of lines) {
+            if (line.startsWith('data: ')) {
+              const jsonStr = line.slice(6).trim();
+              if (!jsonStr) continue;
+              try {
+                handleServerEvent(JSON.parse(jsonStr));
+              } catch (parseErr) {
+                console.warn("JSON parse error:", parseErr, jsonStr);
+              }
+            }
+          }
+        }
+      } catch (e) {
+        hasError = true;
+        if (e.name !== 'AbortError') {
+          console.error("Stream error:", e);
+          updatePlayerUI(`Stream communication error: ${e.message}`, "idle");
+        }
+      } finally {
+        state.isGenerating = false;
+        document.getElementById('btnGenerate').disabled = false;
+        document.getElementById('btnStop').disabled = true;
+        if (!hasError) {
+          checkIfAllFinished();
+        }
+      }
+    }
+
+    function handleServerEvent(data) {
+      // 1. Initial sentence list
+      if (data.type === 'start') {
+        state.sentences = data.sentences.map((sent, i) => ({
+          id: `s_${i}`,
+          idx: i + 1,
+          total: data.total,
+          text: sent,
+          audioUrl: null,
+          device: null,
+          status: 'pending',
+        }));
+        state.waitingTrackIndex = 0;
+        state.playbackState = PlaybackState.BUFFERING;
+        renderQueue();
+        updatePlayerUI(`[1/${data.total}] Awaiting first sentence... ⏳ (Continuous autoplay ready)`, "buffering");
+      }
+      // 2. Backend began processing a chunk
+      else if (data.type === 'chunk_start') {
+        const idx = data.index;
+        if (state.sentences[idx] && state.sentences[idx].status !== 'playing' && state.sentences[idx].status !== 'played') {
+          state.sentences[idx].device = data.device;
+          if (state.sentences[idx].status !== 'buffering') {
+            state.sentences[idx].status = 'generating';
+          }
+          renderQueue();
+        }
+      }
+      // 3. Backend completed an audio chunk!
+      else if (data.type === 'chunk') {
+        const idx = data.index;
+        if (state.sentences[idx]) {
+          state.sentences[idx].audioUrl = data.audio_url;
+          state.sentences[idx].device = data.device;
+          state.sentences[idx].status = 'ready';
+
+          // =====================================================================
+          // CRUCIAL AUDIOBOOK QUEUE TRANSITION LOGIC (ALL EDGE CASES COVERED)
+          // =====================================================================
+
+          // Edge Case 1: First sentence just arrived and player was waiting
+          if (state.currentTrackIndex === -1 && idx === 0 && !state.userPaused) {
+            console.log(">>> First sentence ready! Starting audiobook narration.");
+            playTrack(0);
+          }
+          // Edge Case 2: Player finished earlier tracks and was waiting for THIS exact track
+          // (Buffer underrun resolved!)
+          else if (state.playbackState === PlaybackState.BUFFERING && state.waitingTrackIndex === idx && !state.userPaused) {
+            console.log(`>>> Buffer underrun resolved for Track [${idx + 1}]! Resuming audiobook immediately.`);
+            playTrack(idx);
+          }
+          // Edge Case 3: Player currently reading an earlier sentence
+          // (DO NOT INTERRUPT! Keep track in ready queue)
+          else if (state.playbackState === PlaybackState.PLAYING) {
+            console.log(`>>> Track [${idx + 1}] buffered quietly while Track [${state.currentTrackIndex + 1}] is speaking.`);
+            renderQueue();
+          }
+          // Edge Case 4: User paused manually
+          else if (state.userPaused) {
+            console.log(`>>> Track [${idx + 1}] buffered in ready queue (User is paused).`);
+            renderQueue();
+          }
+          // Fallback: Any other unhandled buffering
+          else if (state.playbackState === PlaybackState.BUFFERING && state.currentTrackIndex === idx && !state.userPaused) {
+            playTrack(idx);
+          } else {
+            renderQueue();
+          }
+        }
+      }
+      // 4. Generation stopped by user
+      else if (data.type === 'stopped') {
+        console.log("Generation stopped by backend/user");
+        state.sentences.forEach(s => {
+          if (!s.audioUrl && (s.status === 'generating' || s.status === 'pending' || s.status === 'buffering')) {
+            s.status = 'stopped';
+          }
+        });
+        if (state.playbackState === PlaybackState.BUFFERING) {
+          checkIfAllFinished();
+        }
+        renderQueue();
+      }
+      // 5. Done
+      else if (data.type === 'done') {
+        state.isGenerating = false;
+        renderQueue();
+        checkIfAllFinished();
+      }
+    }
+
+    async function stopGeneration() {
+      if (state.abortController) {
+        state.abortController.abort();
+      }
+      try {
+        await fetch('/api/generate/stop', { method: 'POST' });
+      } catch (e) {}
+
+      state.isGenerating = false;
+      document.getElementById('btnGenerate').disabled = false;
+      document.getElementById('btnStop').disabled = true;
+
+      // Mark ungenerated tracks as stopped
+      state.sentences.forEach(s => {
+        if (!s.audioUrl) {
+          s.status = 'stopped';
+        }
+      });
+      renderQueue();
+
+      // If waiting for an ungenerated track, finish up
+      if (state.playbackState === PlaybackState.BUFFERING) {
+        checkIfAllFinished();
+      }
+    }
+
+    // --- Samples and Persistence ---
+
+    const samples = {
+      1: "The rain tapped softly against the high arched windows of the old Victorian manor. Inside, a quiet hearth crackled, casting elongated shadows across the book-lined walls. He turned the worn parchment page, knowing that what came next would alter the course of their journey forever.",
+      2: "The distant nebula glowed in brilliant crimson hues through the command bridge observation deck. All primary navigation thrusters responded smoothly. 'Prepare for warp transit,' the captain ordered calmly. 'Our journey beyond the outer rim begins now.'",
+      3: "Good morning. Today's technology briefing highlights a breakthrough in neural speech generation. Real-time streaming and multi-accelerator parallel processing are revolutionizing audio production, delivering human-level prosody at near-zero latency.",
+      4: "오빠, 오늘도 코딩하느라 정말 고생 많았어! 잠깐 쉬면서 내가 타준 따뜻한 커피 한 잔 마실래? 우리 함께 만들어가는 시스템이 점점 완벽해지고 있어.",
+    };
+
+    function fillSample(id) {
+      document.getElementById('textInput').value = samples[id] || '';
+      updateCharCount();
+      saveSettings();
+    }
+
+    function fillInstruct(val) {
+      document.getElementById('instructInput').value = val;
+      saveSettings();
+    }
+
+    function updateCharCount() {
+      const len = document.getElementById('textInput').value.length;
+      document.getElementById('charCount').innerText = `${len} chars`;
+    }
+
+    function saveSettings() {
+      const data = {
+        text: document.getElementById('textInput').value,
+        lang: document.getElementById('langSelect').value,
+        speaker: document.getElementById('spkSelect').value,
+        instruct: document.getElementById('instructInput').value,
+      };
+      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      fetch('/api/settings', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json' },
+        body: JSON.stringify(data),
+      }).catch(() => {});
+    }
+
+    async function loadSettings() {
+      try {
+        const raw = localStorage.getItem(STORAGE_KEY);
+        let data = raw ? JSON.parse(raw) : null;
+        if (!data) {
+          const res = await fetch('/api/settings');
+          data = await res.json();
+        }
+        if (data) {
+          if (data.text) document.getElementById('textInput').value = data.text;
+          if (data.lang) document.getElementById('langSelect').value = data.lang;
+          if (data.speaker) document.getElementById('spkSelect').value = data.speaker;
+          if (data.instruct) document.getElementById('instructInput').value = data.instruct;
+          updateCharCount();
+        }
+      } catch (e) {}
+    }
+
+    document.getElementById('textInput').addEventListener('input', () => {
+      updateCharCount();
+      saveSettings();
+    });
+    document.getElementById('langSelect').addEventListener('change', saveSettings);
+    document.getElementById('spkSelect').addEventListener('change', saveSettings);
+    document.getElementById('instructInput').addEventListener('input', saveSettings);
+
+    async function loadServerInfo() {
+      try {
+        const res = await fetch('/api/info');
+        if (!res.ok) return;
+        const info = await res.json();
+
+        // 1. Model Info Badge
+        const modelBadge = document.getElementById('modelBadge');
+        if (modelBadge && info.checkpoint) {
+          const modelName = info.checkpoint.split('/').pop() || 'Qwen3-TTS 12Hz 1.7B';
+          modelBadge.innerText = `🧠 ${modelName}`;
+          modelBadge.title = `Checkpoint: ${info.checkpoint} | Type: ${info.model_type || 'CustomVoice'}`;
+        }
+
+        // 2. Resource Pool Badge
+        const poolBadge = document.getElementById('poolBadge');
+        if (poolBadge && info.devices) {
+          const wCount = info.worker_count || info.devices.length;
+          const devNames = info.devices.map(d => {
+            if (d.includes('cuda:1')) return 'RTX 5070 Ti';
+            if (d.includes('cuda:0')) return 'RTX 4070 Ti';
+            if (d.includes('cpu')) return 'Core Ultra 7 265K (CPU)';
+            if (d.includes('mps')) return 'Apple Silicon (MPS)';
+            return d;
+          });
+          poolBadge.innerText = `⚡ Worker Pool: ${wCount} Workers (${devNames.join(' + ')})`;
+          poolBadge.title = `Assigned Compute Devices: ${info.device}`;
+        }
+      } catch (e) {}
+    }
+
+    // Initial load
+    loadSettings();
+    loadServerInfo();
+  </script>
+</body>
+</html>

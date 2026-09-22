@@ -29,9 +29,16 @@ class NarrationChunk(TypedDict):
 
 # Pre-compiled regex patterns
 _QUOTE_CLEAN_RE = re.compile(r'["\'“”‘’「」『』`]')
-_PUNCT_SPLIT_RE = re.compile(r'([.!?。！？…]+(?:\s+|$))')
-_KOREAN_QUOTE_PARTICLES = ('라고', '이라며', '라며', '하고', '하며', '면서', '다며')
+_PUNCT_SPLIT_RE = re.compile(r'([.!?。！？]+(?:\s+|$))')
+_KOREAN_QUOTE_PARTICLES = ('라고', '이라고', '이라며', '라며', '하고', '하며', '면서', '다며', '라고는', '이라고는')
 _KOREAN_CASE_PARTICLES = ('은', '는', '이', '가', '을', '를', '과', '와')
+
+_STAGE_DIRECTION_KEYWORDS = (
+    '하며', '면서', '하게', '듯이', '채로', '조로', '톤으로', '목소리로', '어조로',
+    '속삭이며', '한숨', '웃음', '울먹이며', '소리치며', '절규하며', '조용히', '분노하며',
+    '차갑게', '따뜻하게', '단호하게', '비장하게', '놀라며', '당황하며', '기뻐하며',
+    '침통하게', '떨리는', '비웃으며', '비명'
+)
 
 
 def _is_hanging_particle(s: str) -> bool:
@@ -45,6 +52,8 @@ def _is_hanging_particle(s: str) -> bool:
     if any(s.startswith(p + " ") for p in _KOREAN_CASE_PARTICLES):
         return True
     return False
+
+
 _DIALOGUE_LINE_RE = re.compile(
     r'^\s*(?:>\s*)?\*\*([^\*]+?)\*\*\s*(?:\(([^)]+)\)|\[([^\]]+)\])?\s*:\s*(.*)$'
 )
@@ -141,15 +150,73 @@ def is_audiobook_markdown(text: str) -> bool:
     return bool(dialogue_check_re.search(text))
 
 
+def sanitize_speech_text(text: str) -> str:
+    """
+    Sterilize raw manuscript or dialogue text into clean, spoken dialogue for Qwen3-TTS.
+
+    1. Normalizes ellipsis combinations (……! / ...! -> !, …… / ... -> ,)
+    2. Strips or extracts embedded stage directions in parentheses/brackets.
+    3. Completely eliminates unbalanced, orphan, or residual bracket characters.
+    4. Strips quotation marks, markdown symbols, and isolated Korean jamo.
+    5. Normalizes consecutive exclamation/question marks and excessive spacing.
+    """
+    if not text:
+        return ""
+
+    # 1. Normalize ellipsis combined with punctuation:
+    #    ……! / ...! / …! -> !
+    #    ……? / ...? / …? -> ?
+    #    standalone ellipsis …… / ... / … -> , (natural breathing pause)
+    text = re.sub(r'[…\.]{2,}[!！]+', '!', text)
+    text = re.sub(r'[…\.]{2,}[\?？]+', '?', text)
+    text = re.sub(r'[…\.]{2,}', ', ', text)
+    text = re.sub(r'[…]+', ', ', text)
+
+    # 2. Extract or strip parenthesized directions inside dialogue
+    def _replace_direction_bracket(m: re.Match) -> str:
+        content = m.group(1).strip()
+        if (
+            any(kw in content for kw in _STAGE_DIRECTION_KEYWORDS)
+            or (len(content) <= 6 and content.endswith(('히', '게', '며', '로', '채')))
+        ):
+            return ' '
+        # Non-direction clarification (e.g. 사과(Apple) -> 사과 Apple)
+        return f' {content} '
+
+    text = re.sub(r'\(([^)]*)\)', _replace_direction_bracket, text)
+    text = re.sub(r'\[([^\]]*)\]', _replace_direction_bracket, text)
+    text = re.sub(r'\{([^\}]*)\}', _replace_direction_bracket, text)
+
+    # 3. Strip all residual, orphaned, or enclosing bracket characters
+    text = re.sub(r'[\(\)\[\]\{\}⟨⟩〈〉《》「」『』【】〔〕]', ' ', text)
+
+    # 4. Strip quotes and markdown formatting
+    text = re.sub(r'["\'“”‘’`*#_~>|]', ' ', text)
+
+    # 5. Clean isolated Korean jamo (e.g. ㅋㅋ, ㅠㅠ, ㅎㅎ)
+    text = re.sub(r'[ㄱ-ㅎㅏ-ㅣ]+', ' ', text)
+
+    # 6. Normalize punctuation runs (!!! -> !, ??? -> ?)
+    text = re.sub(r'!{2,}', '!', text)
+    text = re.sub(r'\?{2,}', '?', text)
+    text = re.sub(r'[,]{2,}', ',', text)
+    text = re.sub(r'~+', ' ', text)
+
+    # 7. Normalize whitespace
+    text = re.sub(r'\s+', ' ', text).strip()
+    return text
+
+
 def clean_and_split_sentences(line: str) -> List[str]:
     """
     Split text into distinct sentences optimized for audiobook pacing and narration flow.
 
-    1. All quotation marks are stripped to prevent acoustic attention hallucinations.
-    2. Merges hanging Korean dialogue particles ('라고', '하고', '이라며').
-    3. Bundles consecutive ultra-short fragments (< 6 chars) into natural narration units.
+    1. Fully sanitizes text via sanitize_speech_text to remove bracket artifacts.
+    2. Splits safely on terminal punctuation [.!?。！？].
+    3. Merges hanging Korean dialogue particles ('라고', '하고', '이라며').
+    4. Bundles consecutive ultra-short fragments into natural narration units.
     """
-    line = _QUOTE_CLEAN_RE.sub('', line).strip()
+    line = sanitize_speech_text(line)
     if not line:
         return []
 
@@ -310,6 +377,14 @@ def parse_audiobook_script(
                 i += 1
 
             full_speech = " ".join(speech_lines).strip()
+
+            # If stage direction was placed right at the beginning of dialogue:
+            # e.g. **카엘**: (속삭이며) 도망쳐!
+            lead_speech_m = _LEAD_INSTRUCT_RE.match(full_speech)
+            if lead_speech_m:
+                if not inline_instruct:
+                    inline_instruct = lead_speech_m.group(1).strip()
+                full_speech = lead_speech_m.group(2).strip()
 
             # Resolve character profile
             char_cfg = characters_map.get(character, {}) if isinstance(characters_map, dict) else {}

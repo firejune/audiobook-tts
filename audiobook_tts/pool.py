@@ -28,6 +28,24 @@ class StopOnFlagCriteria(StoppingCriteria):
         return bool(self.stop)
 
 
+SPEAKER_ALIASES = {
+    "uncle": "uncle_fu",
+    "uncle fu": "uncle_fu",
+    "uncle_fu": "uncle_fu",
+    "anna": "ono_anna",
+    "ono anna": "ono_anna",
+    "ono_anna": "ono_anna",
+}
+
+
+def normalize_speaker(speaker: str) -> str:
+    """Normalize user-friendly speaker names to model config speaker IDs."""
+    if not speaker:
+        return "vivian"
+    s = str(speaker).strip().lower()
+    return SPEAKER_ALIASES.get(s, s)
+
+
 class WorkerEngine:
     """
     Dedicated execution engine managing a single physical compute device (CUDA GPU, MPS, or CPU).
@@ -52,11 +70,12 @@ class WorkerEngine:
         kwargs: Dict[str, Any] = {
             "stopping_criteria": StoppingCriteriaList([stop_crit])
         }
+        resolved_speaker = normalize_speaker(speaker)
         with self.lock:
             wavs, sr = self.model.generate_custom_voice(
                 text=text,
                 language=language,
-                speaker=speaker,
+                speaker=resolved_speaker,
                 instruct=(instruct or "").strip() or None,
                 non_streaming_mode=False,
                 **kwargs,
@@ -100,7 +119,22 @@ class WorkerPool:
         if not self.workers:
             return {}
         w0 = self.workers[0]
-        speakers = getattr(w0.model.model, "speakers", []) or ["Vivian", "Serena", "Ryan", "Uncle"]
+        model_speakers = w0.model.get_supported_speakers()
+        if model_speakers:
+            name_map = {
+                "vivian": "Vivian",
+                "serena": "Serena",
+                "sohee": "Sohee",
+                "ryan": "Ryan",
+                "aiden": "Aiden",
+                "ono_anna": "Ono Anna",
+                "uncle_fu": "Uncle",
+                "eric": "Eric",
+                "dylan": "Dylan",
+            }
+            speakers = [name_map.get(s.lower(), s.title()) for s in model_speakers]
+        else:
+            speakers = ["Vivian", "Serena", "Sohee", "Ryan", "Aiden", "Ono Anna", "Uncle", "Eric", "Dylan"]
         languages = getattr(w0.model.model, "languages", []) or ["English", "Korean", "Chinese", "Japanese", "Auto"]
         model_type = getattr(w0.model.model, "tts_model_type", "custom_voice")
         device_names = []

@@ -198,7 +198,7 @@ Draw your blades! We stand together!
 - **Hardware Telemetry Badges**: Live indicators displaying active neural model checkpoint, compute devices assigned to the worker pool, and audio fidelity.
 - **Sentence-Level Visual Queue**: Track cards show generation status (`Pending`, `Generating`, `Buffering`, `Playing`, `Completed`) and which specific accelerator generated that sentence.
 - **Autonomous Playback Recovery**: Unlocks HTML5 audio policies seamlessly; resumes immediately when buffer underruns clear.
-- **Voice Preset Selector**: Choose between standard voices (`Vivian`, `Serena`, `Ryan`, `Uncle`) and customize emotional prosody on the fly.
+- **Voice Preset Selector**: Choose from all 9 official Qwen3-TTS voices (`Vivian`, `Serena`, `Sohee`, `Ono Anna`, `Ryan`, `Aiden`, `Uncle`, `Eric`, `Dylan`) and customize emotional prosody on the fly.
 
 ---
 

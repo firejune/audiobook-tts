@@ -142,6 +142,38 @@ instruct: Default tone
         self.assertEqual(chunks[1]["character"], "카엘")
         self.assertEqual(chunks[1]["text"], "드디어 때가 왔다.")
 
+    def test_unpaired_brackets_and_ellipsis_sanitization(self):
+        script = "해……!)"
+        chunks = parse_audiobook_script(script)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0]["text"], "해!")
+
+        script2 = "안 돼……!) 제발 멈춰줘."
+        chunks2 = parse_audiobook_script(script2)
+        self.assertEqual(len(chunks2), 2)
+        self.assertEqual(chunks2[0]["text"], "안 돼!")
+        self.assertEqual(chunks2[1]["text"], "제발 멈춰줘.")
+
+    def test_inline_stage_direction_in_dialogue(self):
+        script = "**카엘**: (속삭이며) 도망쳐……!)"
+        chunks = parse_audiobook_script(script)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0]["character"], "카엘")
+        self.assertEqual(chunks[0]["instruct"], "속삭이며")
+        self.assertEqual(chunks[0]["text"], "도망쳐!")
+
+    def test_embedded_action_and_parentheses_removal(self):
+        script = '그는 (한숨을 쉬며) "어쩔 수 없지……!"라고 말했다.'
+        chunks = parse_audiobook_script(script)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0]["text"], "그는 어쩔 수 없지! 라고 말했다.")
+
+    def test_isolated_jamo_and_decorative_symbols(self):
+        script = "정말요~~~ ㅠㅠ ㅋㅋㅋ"
+        chunks = parse_audiobook_script(script)
+        self.assertEqual(len(chunks), 1)
+        self.assertEqual(chunks[0]["text"], "정말요")
+
 
 if __name__ == "__main__":
     unittest.main()

@@ -580,6 +580,7 @@
               <button type="button" class="chip" onclick="fillSample(2)">🚀 Sci-Fi Odyssey</button>
               <button type="button" class="chip" onclick="fillSample(3)">🎙️ News Briefing</button>
               <button type="button" class="chip" onclick="fillSample(4)">💖 Jinni's Whisper (KR)</button>
+              <button type="button" class="chip" onclick="fillSample(5)" style="border-color:rgba(99,102,241,0.6); color:#a5b4fc;">🎭 Multi-Voice Script (Markdown)</button>
             </div>
           </div>
         </div>
@@ -815,8 +816,15 @@
           console.error("Failed to start audio element:", e);
         }
 
+        function formatTrackText(t) {
+          if (t.character && t.character !== 'Narrator') {
+            return `[${t.character}${t.speaker ? ` (${t.speaker})` : ''}] ${t.text}`;
+          }
+          return t.text;
+        }
+
         document.getElementById('btnMasterPlay').innerText = '⏸';
-        updatePlayerUI(track.text, "playing");
+        updatePlayerUI(formatTrackText(track), "playing");
         renderQueue();
         scrollToTrack(index);
       }
@@ -1074,12 +1082,22 @@
         const tag = tagMap[s.status] || tagMap.pending;
         const devBadge = s.device ? `<span style="font-size:10px; padding:2px 6px; border-radius:4px; background:rgba(255,255,255,0.08); color:var(--accent-glow); margin-left:6px;">${s.device.includes('cuda:1') ? 'RTX 5070 Ti' : s.device.includes('cuda:0') ? 'RTX 4070 Ti' : s.device.includes('cpu') ? 'Ultra 7 265K (CPU)' : s.device}</span>` : '';
 
+        const charBadge = s.character && s.character !== 'Narrator'
+          ? `<span style="font-size:11px; font-weight:600; padding:2px 7px; border-radius:5px; background:rgba(99,102,241,0.22); border:1px solid rgba(99,102,241,0.45); color:#c7d2fe; margin-right:6px;">🎭 ${escapeHtml(s.character)}${s.speaker ? ` (${escapeHtml(s.speaker)})` : ''}</span>`
+          : (s.speaker ? `<span style="font-size:11px; padding:2px 6px; border-radius:5px; background:rgba(255,255,255,0.06); color:#94a3b8; margin-right:6px;">📖 Narrator (${escapeHtml(s.speaker)})</span>` : '');
+
+        const instructBadge = s.instruct
+          ? `<span style="font-size:10px; font-style:italic; padding:2px 6px; border-radius:4px; background:rgba(236,72,153,0.15); border:1px solid rgba(236,72,153,0.3); color:#f472b6; margin-right:6px;">💬 "${escapeHtml(s.instruct)}"</span>`
+          : '';
+
         html += `
           <div id="track-item-${idx}" class="sentence-card ${s.status}" onclick="onTrackClick(${idx})">
             <div class="card-idx">[${idx + 1}/${s.total}]</div>
             <div class="card-content">
               <div class="card-text">${escapeHtml(s.text)}</div>
               <div class="card-meta">
+                ${charBadge}
+                ${instructBadge}
                 ${tag}
                 ${devBadge}
                 ${s.audioUrl ? '<span>• Click to listen</span>' : '<span>• Awaiting generation</span>'}
@@ -1181,11 +1199,21 @@
     function handleServerEvent(data) {
       // 1. Initial sentence list
       if (data.type === 'start') {
-        state.sentences = data.sentences.map((sent, i) => ({
+        const rawItems = data.chunks && data.chunks.length > 0 ? data.chunks : data.sentences.map((sent, i) => ({
+          text: sent,
+          character: 'Narrator',
+          speaker: '',
+          instruct: null,
+        }));
+
+        state.sentences = rawItems.map((item, i) => ({
           id: `s_${i}`,
           idx: i + 1,
           total: data.total,
-          text: sent,
+          text: item.text,
+          character: item.character || 'Narrator',
+          speaker: item.speaker || '',
+          instruct: item.instruct || null,
           audioUrl: null,
           device: null,
           status: 'pending',
@@ -1200,6 +1228,9 @@
         const idx = data.index;
         if (state.sentences[idx] && state.sentences[idx].status !== 'playing' && state.sentences[idx].status !== 'played') {
           state.sentences[idx].device = data.device;
+          if (data.character) state.sentences[idx].character = data.character;
+          if (data.speaker) state.sentences[idx].speaker = data.speaker;
+          if (data.instruct) state.sentences[idx].instruct = data.instruct;
           if (state.sentences[idx].status !== 'buffering') {
             state.sentences[idx].status = 'generating';
           }
@@ -1212,6 +1243,9 @@
         if (state.sentences[idx]) {
           state.sentences[idx].audioUrl = data.audio_url;
           state.sentences[idx].device = data.device;
+          if (data.character) state.sentences[idx].character = data.character;
+          if (data.speaker) state.sentences[idx].speaker = data.speaker;
+          if (data.instruct) state.sentences[idx].instruct = data.instruct;
           state.sentences[idx].status = 'ready';
 
           // =====================================================================
@@ -1302,6 +1336,37 @@
       2: "The distant nebula glowed in brilliant crimson hues through the command bridge observation deck. All primary navigation thrusters responded smoothly. 'Prepare for warp transit,' the captain ordered calmly. 'Our journey beyond the outer rim begins now.'",
       3: "Good morning. Today's technology briefing highlights a breakthrough in neural speech generation. Real-time streaming and multi-accelerator parallel processing are revolutionizing audio production, delivering human-level prosody at near-zero latency.",
       4: "오빠, 오늘도 코딩하느라 정말 고생 많았어! 잠깐 쉬면서 내가 타준 따뜻한 커피 한 잔 마실래? 우리 함께 만들어가는 시스템이 점점 완벽해지고 있어.",
+      5: `---
+title: The Shadow in the Ancient Citadel
+speaker: Serena
+instruct: Atmospheric, immersive audiobook narration
+characters:
+  Kael:
+    speaker: Ryan
+    instruct: Brave and resolute young warrior
+  Elysia:
+    speaker: Vivian
+    instruct: Mysterious and gentle sorceress
+  Elder:
+    speaker: Uncle
+    instruct: Deep and weathered ancient sage
+---
+
+The cold mountain wind whistled through the crumbling arches of the citadel.
+
+**Kael**:
+We are getting close. Stay on guard, everyone.
+
+**Elysia** (whispering softly):
+Do you feel the resonance? The ancient seal has broken.
+
+**Elder [Uncle]** (gravelly and solemn):
+None who entered those forgotten gates have ever returned alive. Turn back while your heartbeat remains.
+
+(tense and dramatic) From the darkest cavern, piercing crimson eyes flickered into existence.
+
+**Kael** (shouting bravely):
+Draw your blades! We will stand together!`,
     };
 
     function fillSample(id) {

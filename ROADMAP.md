@@ -39,7 +39,7 @@ Model architectures evolve rapidly. Binding an entire application lifecycle to a
 | Milestone | Focus | Status |
 | --- | --- | --- |
 | **0.1.0** | Heterogeneous Worker Pool (`cuda:x` + `cpu`), Dynamic SSE streaming, Zero-build Web Studio | **Shipped** |
-| **0.2.0** | Dialogue & Character Voice Registry (automatic speaker mapping) | Planned |
+| **0.2.0** | Dialogue & Character Voice Casting (Audiobook Markdown Script parser & auto-detection) | **Shipped** |
 | **0.3.0** | Document Ingestion Engine (EPUB, PDF, Markdown, TXT) with chapter boundary detection | Planned |
 | **0.4.0** | M4B / MP3 Container Packaging with ID3/M4A metadata & chapter marks | Planned |
 | **0.5.0** | Pluggable Engine Abstraction (CosyVoice & F5-TTS backend adapters) | Planned |

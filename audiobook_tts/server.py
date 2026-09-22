@@ -24,7 +24,7 @@ from fastapi.responses import FileResponse, StreamingResponse
 from pydantic import BaseModel
 
 from .pool import WorkerPool
-from .text import split_into_sentences, wav_to_base64_data_url
+from .text import parse_audiobook_script, split_into_sentences, wav_to_base64_data_url
 
 # Root paths
 PACKAGE_DIR = Path(__file__).resolve().parent
@@ -137,22 +137,37 @@ async def generate_stream(req: GenerateRequest):
         raise HTTPException(status_code=400, detail="Text payload cannot be empty.")
 
     pool = get_worker_pool()
-    sentences = split_into_sentences(text) if req.stream else [text]
-    total_sents = len(sentences)
+    if req.stream:
+        chunks = parse_audiobook_script(
+            text, default_speaker=req.speaker, default_instruct=req.instruct
+        )
+    else:
+        chunks = [
+            {
+                "index": 0,
+                "text": text,
+                "character": "Narrator",
+                "speaker": req.speaker,
+                "instruct": req.instruct,
+            }
+        ]
+    total_sents = len(chunks)
+    sentences = [c["text"] for c in chunks]
 
     async def event_generator():
-        # 1. Initial event announcing full chapter text structure
+        # 1. Initial event announcing full chapter text structure and character casting
         start_payload = json.dumps({
             "type": "start",
             "total": total_sents,
             "sentences": sentences,
+            "chunks": chunks,
             "workers": len(pool.workers),
         }, ensure_ascii=False)
         yield f"data: {start_payload}\n\n"
 
         work_queue: asyncio.Queue = asyncio.Queue()
-        for i, s in enumerate(sentences):
-            work_queue.put_nowait((i, s))
+        for i, c in enumerate(chunks):
+            work_queue.put_nowait((i, c))
 
         out_queue: asyncio.Queue = asyncio.Queue()
         loop = asyncio.get_running_loop()
@@ -163,14 +178,22 @@ async def generate_stream(req: GenerateRequest):
                     if _STOP_REQUESTED or _CURRENT_GEN_ID != my_gen_id:
                         break
                     try:
-                        idx, sent = work_queue.get_nowait()
+                        idx, chunk = work_queue.get_nowait()
                     except asyncio.QueueEmpty:
                         break
+
+                    sent = chunk["text"]
+                    sent_speaker = chunk["speaker"]
+                    sent_instruct = chunk["instruct"]
+                    sent_char = chunk["character"]
 
                     await out_queue.put({
                         "type": "chunk_start",
                         "index": idx,
                         "text": sent,
+                        "character": sent_char,
+                        "speaker": sent_speaker,
+                        "instruct": sent_instruct,
                         "device": worker.device,
                     })
 
@@ -178,8 +201,8 @@ async def generate_stream(req: GenerateRequest):
                         return worker.infer(
                             text=sent,
                             language=req.language,
-                            speaker=req.speaker,
-                            instruct=req.instruct,
+                            speaker=sent_speaker,
+                            instruct=sent_instruct,
                         )
 
                     wavs, sent_sr = await loop.run_in_executor(None, _do_infer)
@@ -195,6 +218,9 @@ async def generate_stream(req: GenerateRequest):
                             "index": idx,
                             "total": total_sents,
                             "text": sent,
+                            "character": sent_char,
+                            "speaker": sent_speaker,
+                            "instruct": sent_instruct,
                             "audio_url": b64_url,
                             "device": worker.device,
                         })

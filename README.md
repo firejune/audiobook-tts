@@ -138,6 +138,60 @@ options:
 
 ---
 
+## Audiobook Markdown Script Format
+
+`audiobook-tts` features a zero-configuration auto-detecting parser. You can feed either plain novel text or structured **Audiobook Markdown Scripts**. When a script is detected, voices and emotional instructions are dynamically routed per sentence to designated character presets.
+
+### Syntax Overview
+
+```markdown
+---
+title: The Shadow in the Citadel
+speaker: Serena
+instruct: Atmospheric and immersive narration
+characters:
+  Kael:
+    speaker: Ryan
+    instruct: Brave and resolute young warrior
+  Elysia:
+    speaker: Vivian
+    instruct: Gentle and mystical sorceress
+  Elder:
+    speaker: Uncle
+    instruct: Deep weathered ancient sage
+---
+
+The cold mountain wind whistled through the crumbling arches.
+
+**Kael**:
+We are getting close. Stay on guard, everyone.
+
+**Elysia** (whispering softly):
+Do you feel that? The magical seal has broken.
+
+**Elder [Uncle]** (gravelly and solemn):
+None who entered those forgotten gates have returned alive.
+
+(tense and dramatic) From the darkest shadows, crimson eyes began to glow.
+
+**Kael** (shouting bravely):
+Draw your blades! We stand together!
+```
+
+### Key Rules
+
+1. **Frontmatter (Optional)**: Declare default narrator voice (`speaker`), narrative style (`instruct`), and character voice presets under `characters:`.
+2. **Character Dialogue**:
+   - `**Character**: Speech text` (uses preset speaker and style).
+   - `**Character** (Emotion): Speech text` (overrides emotional style for this line).
+   - `**Character [Speaker]** (Emotion): Speech text` (inline speaker override).
+3. **Exposition & Narration**:
+   - Paragraphs without bold names are spoken by the default narrator.
+   - Lead directions like `(dramatic tone) The clouds parted.` set the narration mood for that sentence.
+4. **Auto-Detection**: Plain text without markdown cues runs seamlessly through the natural sentence tokenizer without manual mode switching.
+
+---
+
 ## Web Studio Features
 
 - **Zero-Build Portability**: Single standalone `web/index.html` file using pure Vanilla JS/CSS. No Node.js build step, no Webpack/Vite bundler required.

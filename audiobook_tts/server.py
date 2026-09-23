@@ -30,7 +30,6 @@ from .text import parse_audiobook_script, split_into_sentences, wav_to_base64_da
 PACKAGE_DIR = Path(__file__).resolve().parent
 REPO_ROOT = PACKAGE_DIR.parent
 WEB_DIR = REPO_ROOT / "web"
-SETTINGS_FILE = REPO_ROOT / "last_settings.json"
 
 # Concurrency & Stop Flags
 _STOP_REQUESTED = False
@@ -43,26 +42,6 @@ def get_worker_pool() -> WorkerPool:
     if global_pool is None:
         raise RuntimeError("Worker pool is not initialized.")
     return global_pool
-
-
-def _load_settings() -> Dict[str, Any]:
-    try:
-        if SETTINGS_FILE.exists():
-            with open(SETTINGS_FILE, "r", encoding="utf-8") as f:
-                return json.load(f)
-    except Exception as e:
-        print(f"[Warning] Failed to load settings: {e}")
-    return {}
-
-
-def _save_settings(data: Dict[str, Any]):
-    try:
-        cur = _load_settings()
-        cur.update(data)
-        with open(SETTINGS_FILE, "w", encoding="utf-8") as f:
-            json.dump(cur, f, ensure_ascii=False, indent=2)
-    except Exception as e:
-        print(f"[Warning] Failed to save settings: {e}")
 
 
 app = FastAPI(
@@ -104,13 +83,13 @@ async def api_info():
 
 @app.get("/api/settings")
 async def api_get_settings():
-    return _load_settings()
+    # Deprecated: settings are stored locally in the client browser localStorage
+    return {}
 
 
 @app.post("/api/settings")
-async def api_save_settings(req: Request):
-    data = await req.json()
-    _save_settings(data)
+async def api_save_settings():
+    # Deprecated: settings are stored locally in the client browser localStorage
     return {"status": "ok"}
 
 

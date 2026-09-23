@@ -569,7 +569,10 @@
         <div class="form-group">
           <div class="label-row">
             <label for="textInput">Manuscript / Chapter Text</label>
-            <span style="font-size: 0.76rem; color: var(--text-dim);" id="charCount">0 chars</span>
+            <div style="display: flex; align-items: center; gap: 8px;">
+              <button type="button" class="chip" onclick="clearManuscript()" style="padding: 2px 8px; font-size: 0.72rem; border-color: rgba(239, 68, 68, 0.4); color: #f87171;" title="Clear text and localStorage">🗑️ Clear</button>
+              <span style="font-size: 0.76rem; color: var(--text-dim);" id="charCount">0 chars</span>
+            </div>
           </div>
           <textarea id="textInput" placeholder="Enter or paste novel chapters, articles, or dialogue to generate..."></textarea>
           
@@ -1390,37 +1393,42 @@ Draw your blades! We will stand together!`,
       document.getElementById('charCount').innerText = `${len} chars`;
     }
 
-    function saveSettings() {
-      const data = {
-        text: document.getElementById('textInput').value,
-        lang: document.getElementById('langSelect').value,
-        speaker: document.getElementById('spkSelect').value,
-        instruct: document.getElementById('instructInput').value,
-      };
-      localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
-      fetch('/api/settings', {
-        method: 'POST',
-        headers: { 'Content-Type': 'application/json' },
-        body: JSON.stringify(data),
-      }).catch(() => {});
+    function clearManuscript() {
+      document.getElementById('textInput').value = '';
+      updateCharCount();
+      saveSettings();
     }
 
-    async function loadSettings() {
+    function saveSettings() {
+      try {
+        const data = {
+          text: document.getElementById('textInput').value,
+          lang: document.getElementById('langSelect').value,
+          speaker: document.getElementById('spkSelect').value,
+          instruct: document.getElementById('instructInput').value,
+        };
+        localStorage.setItem(STORAGE_KEY, JSON.stringify(data));
+      } catch (e) {
+        console.warn("Failed to persist settings to localStorage:", e);
+      }
+    }
+
+    function loadSettings() {
       try {
         const raw = localStorage.getItem(STORAGE_KEY);
-        let data = raw ? JSON.parse(raw) : null;
-        if (!data) {
-          const res = await fetch('/api/settings');
-          data = await res.json();
+        if (raw) {
+          const data = JSON.parse(raw);
+          if (data && typeof data === 'object') {
+            if (data.text !== undefined) document.getElementById('textInput').value = data.text;
+            if (data.lang !== undefined) document.getElementById('langSelect').value = data.lang;
+            if (data.speaker !== undefined) document.getElementById('spkSelect').value = data.speaker;
+            if (data.instruct !== undefined) document.getElementById('instructInput').value = data.instruct;
+            updateCharCount();
+          }
         }
-        if (data) {
-          if (data.text) document.getElementById('textInput').value = data.text;
-          if (data.lang) document.getElementById('langSelect').value = data.lang;
-          if (data.speaker) document.getElementById('spkSelect').value = data.speaker;
-          if (data.instruct) document.getElementById('instructInput').value = data.instruct;
-          updateCharCount();
-        }
-      } catch (e) {}
+      } catch (e) {
+        console.warn("Failed to load settings from localStorage:", e);
+      }
     }
 
     document.getElementById('textInput').addEventListener('input', () => {

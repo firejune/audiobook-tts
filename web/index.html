@@ -222,6 +222,87 @@
       line-height: 1.6;
     }
 
+    /* Drag & Drop Wrapper & Overlay */
+    .textarea-wrapper {
+      position: relative;
+      border-radius: 12px;
+    }
+
+    .dropzone-overlay {
+      position: absolute;
+      inset: 0;
+      background: rgba(13, 20, 36, 0.94);
+      backdrop-filter: blur(10px);
+      border: 2px dashed #818cf8;
+      border-radius: 12px;
+      display: flex;
+      flex-direction: column;
+      align-items: center;
+      justify-content: center;
+      gap: 12px;
+      color: #c7d2fe;
+      font-weight: 600;
+      font-size: 0.96rem;
+      pointer-events: none;
+      opacity: 0;
+      visibility: hidden;
+      transform: scale(0.98);
+      transition: all 0.22s cubic-bezier(0.4, 0, 0.2, 1);
+      z-index: 20;
+      box-shadow: 0 0 35px rgba(99, 102, 241, 0.45);
+    }
+
+    .dropzone-overlay.active {
+      opacity: 1;
+      visibility: visible;
+      transform: scale(1);
+    }
+
+    .dropzone-overlay svg {
+      animation: bounce 1.2s infinite ease-in-out;
+    }
+
+    @keyframes bounce {
+      0%, 100% { transform: translateY(0); }
+      50% { transform: translateY(-6px); }
+    }
+
+    /* Toast Notification */
+    .toast-container {
+      position: fixed;
+      bottom: 24px;
+      right: 24px;
+      z-index: 9999;
+      display: flex;
+      flex-direction: column;
+      gap: 10px;
+      pointer-events: none;
+    }
+
+    .toast {
+      background: rgba(15, 23, 42, 0.95);
+      border: 1px solid rgba(99, 102, 241, 0.45);
+      color: #ffffff;
+      padding: 12px 18px;
+      border-radius: 12px;
+      box-shadow: 0 12px 36px rgba(0, 0, 0, 0.6);
+      backdrop-filter: blur(14px);
+      font-size: 0.88rem;
+      font-weight: 600;
+      display: flex;
+      align-items: center;
+      gap: 10px;
+      opacity: 0;
+      transform: translateY(12px);
+      transition: all 0.28s cubic-bezier(0.4, 0, 0.2, 1);
+      pointer-events: auto;
+    }
+
+    .toast.show {
+      opacity: 1;
+      transform: translateY(0);
+    }
+
     /* Quick Chips */
     .chip-group {
       display: flex;
@@ -570,11 +651,20 @@
           <div class="label-row">
             <label for="textInput">Manuscript / Chapter Text</label>
             <div style="display: flex; align-items: center; gap: 8px;">
+              <input type="file" id="filePicker" accept=".md,.markdown,.txt" style="display: none;" onchange="handleFileSelect(event)">
+              <button type="button" class="chip" onclick="document.getElementById('filePicker').click()" style="padding: 2px 8px; font-size: 0.72rem; border-color: rgba(99, 102, 241, 0.5); color: #c7d2fe;" title="Open and load .md or .txt file">📂 Open .md</button>
               <button type="button" class="chip" onclick="clearManuscript()" style="padding: 2px 8px; font-size: 0.72rem; border-color: rgba(239, 68, 68, 0.4); color: #f87171;" title="Clear text and localStorage">🗑️ Clear</button>
               <span style="font-size: 0.76rem; color: var(--text-dim);" id="charCount">0 chars</span>
             </div>
           </div>
-          <textarea id="textInput" placeholder="Enter or paste novel chapters, articles, or dialogue to generate..."></textarea>
+          <div class="textarea-wrapper" id="dropArea">
+            <textarea id="textInput" placeholder="Enter, paste, or drag & drop novel chapters (.md, .txt) here..."></textarea>
+            <div class="dropzone-overlay" id="dropOverlay">
+              <svg width="40" height="40" viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" style="color:#818cf8;"><path d="M21 15v4a2 2 0 0 1-2 2H5a2 2 0 0 1-2-2v-4"/><polyline points="7 10 12 15 17 10"/><line x1="12" y1="15" x2="12" y2="3"/></svg>
+              <span>Drop Markdown (.md) or Text file here</span>
+              <span style="font-size: 0.76rem; color: var(--text-dim); font-weight: normal;">Supports UTF-8 · Automatically saved</span>
+            </div>
+          </div>
           
           <div style="margin-top: 8px;">
             <div style="font-size: 0.76rem; color: var(--text-dim); margin-bottom: 4px;">⚡ Preset Samples</div>
@@ -1470,9 +1560,116 @@ Draw your blades! We will stand together!`,
       } catch (e) {}
     }
 
+    // =========================================================================
+    // Toast Notification System
+    // =========================================================================
+    function showToast(message, type = 'info') {
+      const container = document.getElementById('toastContainer');
+      if (!container) return;
+      const toast = document.createElement('div');
+      toast.className = 'toast';
+      if (type === 'error') {
+        toast.style.borderColor = 'rgba(239, 68, 68, 0.6)';
+        toast.style.background = 'rgba(28, 12, 16, 0.96)';
+      }
+      toast.innerText = message;
+      container.appendChild(toast);
+
+      requestAnimationFrame(() => {
+        toast.classList.add('show');
+      });
+
+      setTimeout(() => {
+        toast.classList.remove('show');
+        setTimeout(() => toast.remove(), 300);
+      }, 3500);
+    }
+
+    // =========================================================================
+    // File Drag & Drop & Upload Handling (.md, .txt)
+    // =========================================================================
+    function readAndApplyFile(file) {
+      if (!file) return;
+      const isMd = /\.(md|markdown|txt)$/i.test(file.name);
+      if (!isMd && file.type && !file.type.startsWith('text/')) {
+        showToast(`⚠️ "${file.name}" is not a recognized markdown or text file.`, 'error');
+        return;
+      }
+
+      const reader = new FileReader();
+      reader.onload = (e) => {
+        const content = e.target.result;
+        document.getElementById('textInput').value = content;
+        updateCharCount();
+        saveSettings();
+        showToast(`📄 Loaded "${file.name}" (${content.length.toLocaleString()} chars)`);
+      };
+      reader.onerror = () => {
+        showToast(`❌ Failed to read "${file.name}".`, 'error');
+      };
+      reader.readAsText(file, 'utf-8');
+    }
+
+    function handleFileSelect(event) {
+      const file = event.target.files && event.target.files[0];
+      if (file) {
+        readAndApplyFile(file);
+        event.target.value = '';
+      }
+    }
+
+    // Setup Drag and Drop Listeners
+    const dropArea = document.getElementById('dropArea');
+    const dropOverlay = document.getElementById('dropOverlay');
+
+    ['dragenter', 'dragover', 'dragleave', 'drop'].forEach(evtName => {
+      window.addEventListener(evtName, (e) => {
+        e.preventDefault();
+        e.stopPropagation();
+      }, false);
+    });
+
+    let dragCounter = 0;
+
+    window.addEventListener('dragenter', (e) => {
+      e.preventDefault();
+      if (e.dataTransfer && e.dataTransfer.types && Array.from(e.dataTransfer.types).includes('Files')) {
+        dragCounter++;
+        if (dropOverlay) dropOverlay.classList.add('active');
+      }
+    });
+
+    window.addEventListener('dragleave', (e) => {
+      e.preventDefault();
+      dragCounter--;
+      if (dragCounter <= 0) {
+        dragCounter = 0;
+        if (dropOverlay) dropOverlay.classList.remove('active');
+      }
+    });
+
+    window.addEventListener('dragover', (e) => {
+      e.preventDefault();
+      if (e.dataTransfer) {
+        e.dataTransfer.dropEffect = 'copy';
+      }
+    });
+
+    window.addEventListener('drop', (e) => {
+      e.preventDefault();
+      dragCounter = 0;
+      if (dropOverlay) dropOverlay.classList.remove('active');
+
+      const dt = e.dataTransfer;
+      if (dt && dt.files && dt.files.length > 0) {
+        readAndApplyFile(dt.files[0]);
+      }
+    });
+
     // Initial load
     loadSettings();
     loadServerInfo();
   </script>
+  <div class="toast-container" id="toastContainer"></div>
 </body>
 </html>
